@@ -6,7 +6,7 @@ environment  = "dev"
 
 rds_instance_identifier  = "classic-models-db"
 rds_allocated_storage    = 20
-rds_engine_version       = "8.0.35"
+rds_engine_version       = "8.0"
 rds_instance_class       = "db.t3.micro"
 enable_rds_public_access = true
 

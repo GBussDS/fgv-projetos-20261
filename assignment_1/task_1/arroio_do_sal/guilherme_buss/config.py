@@ -1,7 +1,7 @@
 import os
 
 # RDS Configuration
-RDS_INSTANCE_IDENTIFIER = "classicmodels-mysql"
+RDS_INSTANCE_IDENTIFIER = "classic-models-db"
 RDS_DB_NAME = "classicmodels"
 RDS_MASTER_USERNAME = "admin"
 RDS_MASTER_PASSWORD = os.environ.get("RDS_PASSWORD", "ClassicModels2026!")

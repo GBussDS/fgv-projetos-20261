@@ -67,7 +67,7 @@ resource "aws_db_instance" "classic_models_db" {
   multi_az                = false
   backup_retention_period = 7
   vpc_security_group_ids  = [aws_security_group.rds_sg.id]
-  enable_cloudwatch_logs_exports = ["error", "general", "slowquery"]
+  enabled_cloudwatch_logs_exports = ["error", "general", "slowquery"]
   parameter_group_name    = aws_db_parameter_group.classic_models_params.name
 }
 
@@ -117,61 +117,16 @@ resource "aws_secretsmanager_secret_version" "rds_credentials" {
   })
 }
 
-resource "aws_iam_role" "glue_job_role" {
-  name = "${var.project_name}-glue-job-role"
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
-      Principal = {
-        Service = "glue.amazonaws.com"
-      }
-    }]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "glue_service_role" {
-  role       = aws_iam_role.glue_job_role.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole"
-}
-
-resource "aws_iam_role_policy" "glue_job_policy" {
-  name = "${var.project_name}-glue-job-policy"
-  role = aws_iam_role.glue_job_role.id
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect   = "Allow"
-        Action   = ["glue:GetConnection", "glue:GetConnections"]
-        Resource = ["*"]
-      },
-      {
-        Effect = "Allow"
-        Action = ["s3:PutObject", "s3:GetObject", "s3:ListBucket", "s3:DeleteObject"]
-        Resource = [aws_s3_bucket.etl_output.arn, "${aws_s3_bucket.etl_output.arn}/*"]
-      },
-      {
-        Effect   = "Allow"
-        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
-        Resource = "*"
-      },
-      {
-        Effect   = "Allow"
-        Action   = ["secretsmanager:GetSecretValue"]
-        Resource = [aws_secretsmanager_secret.rds_credentials.arn]
-      }
-    ]
-  })
+data "aws_iam_role" "lab_role" {
+  name = "LabRole"
 }
 
 resource "aws_glue_connection" "rds_jdbc" {
   name            = "${var.project_name}-rds-connection"
   connection_type = "JDBC"
   connection_properties = {
-    SECRET_ID = aws_secretsmanager_secret.rds_credentials.id
-    JDBC_URL  = "jdbc:mysql://${aws_db_instance.classic_models_db.endpoint}/${var.db_name}?useSSL=false&serverTimezone=UTC"
+    SECRET_ID           = aws_secretsmanager_secret.rds_credentials.id
+    JDBC_CONNECTION_URL = "jdbc:mysql://${aws_db_instance.classic_models_db.endpoint}/${var.db_name}?useSSL=false&serverTimezone=UTC"
   }
 }
 
@@ -184,7 +139,7 @@ resource "aws_s3_object" "glue_script" {
 
 resource "aws_glue_job" "classic_models_etl" {
   name     = var.glue_job_name
-  role_arn = aws_iam_role.glue_job_role.arn
+  role_arn = data.aws_iam_role.lab_role.arn
   command {
     name            = "glueetl"
     script_location = "s3://${aws_s3_bucket.etl_output.id}/${aws_s3_object.glue_script.key}"
@@ -244,6 +199,6 @@ output "glue_job_name" {
   value = aws_glue_job.classic_models_etl.name
 }
 
-output "iam_role_arn" {
-  value = aws_iam_role.glue_job_role.arn
+output "iam_role_arn" { 
+  value = data.aws_iam_role.lab_role.arn
 }

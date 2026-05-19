@@ -35,12 +35,8 @@ def load_data():
     endpoint = get_rds_endpoint()
     print(f"Conectando ao RDS: {endpoint}:{RDS_PORT}")
 
-    # Lê o arquivo SQL
     print(f"Lendo arquivo SQL: {SQL_FILE_PATH}")
-    with open(SQL_FILE_PATH, "r", encoding="utf-8") as f:
-        sql_content = f.read()
-
-    # Conecta ao MySQL (sem especificar database, pois o SQL cria o database)
+    
     connection = pymysql.connect(
         host=endpoint,
         port=RDS_PORT,
@@ -49,27 +45,24 @@ def load_data():
         autocommit=True,
         connect_timeout=10,
         charset="utf8mb4",
+        client_flag=pymysql.constants.CLIENT.MULTI_STATEMENTS  # O SEGREDO AQUI!
     )
 
     try:
         cursor = connection.cursor()
+        
+        # Lê o arquivo inteiro como uma única string
+        with open(SQL_FILE_PATH, "r", encoding="utf-8") as f:
+            sql_content = f.read()
 
-        # Executa cada statement separadamente
-        statements = sql_content.split(";")
-        total = len(statements)
-        executed = 0
-        for i, stmt in enumerate(statements):
-            stmt = stmt.strip()
-            if not stmt or stmt.startswith("/*") or stmt.startswith("--"):
-                continue
-            try:
-                cursor.execute(stmt)
-                executed += 1
-            except pymysql.Error as e:
-                # Ignorar erros de DROP TABLE IF NOT EXISTS e similares
-                print(f"  Aviso no statement {i}: {e}")
-
-        print(f"\nCarga concluída! {executed} statements executados de {total} no arquivo.")
+        print("Executando o script SQL (isso pode levar alguns segundos)...")
+        # Executa tudo de uma vez. O flag MULTI_STATEMENTS cuida dos delimitadores nativamente!
+        cursor.execute(sql_content)
+        
+        print(f"\nCarga concluída com sucesso! Banco populado.")
+        
+    except pymysql.Error as e:
+         print(f"Erro ao executar o SQL: {e}")
     finally:
         connection.close()
         print("Conexão encerrada.")

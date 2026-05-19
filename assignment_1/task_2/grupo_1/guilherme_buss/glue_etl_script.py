@@ -72,7 +72,7 @@ try:
         F.col("country")
     ).distinct()
     
-    products_full = products_df.join(productlines_df, products_df.productLine == productlines_df.productLine, "left")
+    products_full = products_df.join(productlines_df, "productLine", "left")
     dim_products = products_full.select(F.col("productCode").alias("product_id"), F.col("productName").alias("product_name"), F.col("productLine").alias("product_line"), F.col("productVendor").alias("product_vendor")).distinct()
     
     dim_countries = customers_df.select(F.col("country")).distinct().withColumn(
@@ -80,14 +80,14 @@ try:
     ).withColumn("territory", F.lit(None).cast("string"))
     
     orders_with_details = (
-        orders_df.join(orderdetails_df, orders_df.orderNumber == orderdetails_df.orderNumber, "inner")
-            .join(customers_df, orders_df.customerNumber == customers_df.customerNumber, "inner")
-            .join(products_df, orderdetails_df.productCode == products_df.productCode, "inner")
+        orders_df.join(orderdetails_df, "orderNumber", "inner")
+            .join(customers_df, "customerNumber", "inner")
+            .join(products_df, "productCode", "inner")
     )
 
     orders_with_country = orders_with_details.join(
         dim_countries.select("country", "country_key"),
-        orders_with_details["country"] == dim_countries["country"],
+        "country",
         "left"
     )
 
